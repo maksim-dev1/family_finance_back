@@ -31,6 +31,7 @@ func main() {
 	// Настраиваем маршруты
 	http.HandleFunc("/send-code", authHandler.SendCode)
 	http.HandleFunc("/verify-code", authHandler.VerifyCode)
+	http.HandleFunc("/ping", handlers.PingHandler)
 
 	log.Println("Сервер запущен на порту 8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
