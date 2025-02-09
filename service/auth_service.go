@@ -5,8 +5,7 @@ import (
 	"family_finance_back/config"
 	"family_finance_back/models"
 	"family_finance_back/repository"
-    "family_finance_back/utils/code"
-    "family_finance_back/utils/email"
+    "family_finance_back/utils"
 	"fmt"
 )
 
@@ -29,12 +28,12 @@ func NewAuthService(userRepo repository.UserRepository, cfg config.Config) AuthS
 
 // SendVerificationCode генерирует код, отправляет его на email и сохраняет/обновляет пользователя в БД
 func (s *authService) SendVerificationCode(emailAddr string) error {
-	code := code.GenerateVerificationCode()
+	code := utils.GenerateVerificationCode()
 
 	// Отправка письма с кодом
 	subject := "Ваш проверочный код"
 	body := fmt.Sprintf("Ваш проверочный код: %s", code)
-	if err := email.SendEmail(s.cfg.SMTPHost, s.cfg.SMTPPort, s.cfg.SMTPUsername, s.cfg.SMTPPassword, emailAddr, subject, body); err != nil {
+	if err := utils.SendEmail(s.cfg.SMTPHost, s.cfg.SMTPPort, s.cfg.SMTPUsername, s.cfg.SMTPPassword, emailAddr, subject, body); err != nil {
 		return err
 	}
 

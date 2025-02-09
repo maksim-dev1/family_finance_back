@@ -1,5 +1,5 @@
-// utils/code/code.go
-package code
+// utils/code.go
+package utils
 
 import (
 	"fmt"

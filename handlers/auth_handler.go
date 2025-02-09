@@ -28,28 +28,31 @@ type verifyCodeRequest struct {
 func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 	var req sendCodeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Неверный запрос", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest, "Неверный запрос")
 		return
 	}
+
 	if err := h.authService.SendVerificationCode(req.Email); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Проверочный код отправлен"))
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Проверочный код отправлен"})
 }
 
 // VerifyCode – обработчик для проверки введенного кода
 func (h *AuthHandler) VerifyCode(w http.ResponseWriter, r *http.Request) {
 	var req verifyCodeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Неверный запрос", http.StatusBadRequest)
+		respondWithError(w, http.StatusBadRequest, "Неверный запрос")
 		return
 	}
+
 	if err := h.authService.VerifyCode(req.Email, req.Code); err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		// Если код неверный или пользователь не найден, можно вернуть 401 (Unauthorized)
+		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Пользователь подтвержден"))
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Пользователь подтвержден"})
 }

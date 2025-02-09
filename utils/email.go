@@ -1,5 +1,5 @@
-// utils/email/email.go
-package email
+// utils/email.go
+package utils
 
 import (
 	"fmt"
