@@ -16,7 +16,7 @@ func GetConfig() Config {
 		DBPath:       "users.db",            // для SQLite (файл будет создан в корне проекта)
 		SMTPHost:     "smtp.gmail.com",      // пример для Gmail
 		SMTPPort:     587,
-		SMTPUsername: "your_email@gmail.com",  // замените на ваш email
-		SMTPPassword: "your_email_password",   // замените на ваш пароль или используйте App Password (рекомендуется)
+		SMTPUsername: "maks-vasilev-2017@inbox.ru",  // замените на ваш email
+		SMTPPassword: "mzgm qflx abxs qqkl",   // замените на ваш пароль или используйте App Password (рекомендуется)
 	}
 }

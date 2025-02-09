@@ -1,4 +1,4 @@
-// utils/email.go
+// utils/email/email.go
 package email
 
 import (
