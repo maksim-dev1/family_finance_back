@@ -1,4 +1,3 @@
-// repository/user_repository.go
 package repository
 
 import (
@@ -18,44 +17,32 @@ type userRepository struct {
 }
 
 func NewUserRepository(db *sql.DB) UserRepository {
-	return &userRepository{
-		db: db,
-	}
+	return &userRepository{db: db}
 }
 
 func (r *userRepository) GetUserByEmail(email string) (*models.User, error) {
-	query := "SELECT id, email, verification_code, is_verified, created_at FROM users WHERE email = ?"
+	query := "SELECT id, email, verification_code, is_verified, created_at FROM users WHERE email = $1"
 	row := r.db.QueryRow(query, email)
 	var user models.User
-	var isVerifiedInt int
-	err := row.Scan(&user.ID, &user.Email, &user.VerificationCode, &isVerifiedInt, &user.CreatedAt)
+	err := row.Scan(&user.ID, &user.Email, &user.VerificationCode, &user.IsVerified, &user.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // пользователь не найден
 		}
 		return nil, err
 	}
-	user.IsVerified = isVerifiedInt == 1
 	return &user, nil
 }
 
 func (r *userRepository) CreateUser(user *models.User) error {
-	query := "INSERT INTO users (email, verification_code, is_verified) VALUES (?, ?, ?)"
-	isVerifiedInt := 0
-	if user.IsVerified {
-		isVerifiedInt = 1
-	}
-	_, err := r.db.Exec(query, user.Email, user.VerificationCode, isVerifiedInt)
+	query := "INSERT INTO users (email, verification_code, is_verified) VALUES ($1, $2, $3)"
+	_, err := r.db.Exec(query, user.Email, user.VerificationCode, user.IsVerified)
 	return err
 }
 
 func (r *userRepository) UpdateUserVerification(email string, code string, isVerified bool) error {
-	query := "UPDATE users SET verification_code = ?, is_verified = ? WHERE email = ?"
-	isVerifiedInt := 0
-	if isVerified {
-		isVerifiedInt = 1
-	}
-	result, err := r.db.Exec(query, code, isVerifiedInt, email)
+	query := "UPDATE users SET verification_code = $1, is_verified = $2 WHERE email = $3"
+	result, err := r.db.Exec(query, code, isVerified, email)
 	if err != nil {
 		return err
 	}

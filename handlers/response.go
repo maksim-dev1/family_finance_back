@@ -1,4 +1,3 @@
-// handlers/response.go
 package handlers
 
 import (
@@ -6,11 +5,10 @@ import (
 	"net/http"
 )
 
-// respondWithError отправляет JSON-ответ с сообщением об ошибке и нужным HTTP-кодом.
+// respondWithError отправляет JSON-ответ с сообщением об ошибке.
 func respondWithError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	// Можно возвращать объект с полем error и, например, timestamp, если нужно.
 	json.NewEncoder(w).Encode(map[string]string{
 		"error": message,
 	})

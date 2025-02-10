@@ -1,4 +1,3 @@
-// handlers/auth_handler.go
 package handlers
 
 import (
@@ -24,7 +23,7 @@ type verifyCodeRequest struct {
 	Code  string `json:"code"`
 }
 
-// SendCode – обработчик для запроса на отправку проверочного кода
+// SendCode – обработчик запроса на отправку проверочного кода.
 func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 	var req sendCodeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -40,7 +39,7 @@ func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Проверочный код отправлен"})
 }
 
-// VerifyCode – обработчик для проверки введенного кода
+// VerifyCode – обработчик для проверки введенного кода.
 func (h *AuthHandler) VerifyCode(w http.ResponseWriter, r *http.Request) {
 	var req verifyCodeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -49,7 +48,6 @@ func (h *AuthHandler) VerifyCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.authService.VerifyCode(req.Email, req.Code); err != nil {
-		// Если код неверный или пользователь не найден, можно вернуть 401 (Unauthorized)
 		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
 	}

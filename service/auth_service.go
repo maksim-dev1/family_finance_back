@@ -1,12 +1,11 @@
-// service/auth_service.go
 package service
 
 import (
+	"fmt"
 	"family_finance_back/config"
 	"family_finance_back/models"
 	"family_finance_back/repository"
-    "family_finance_back/utils"
-	"fmt"
+	"family_finance_back/utils"
 )
 
 type AuthService interface {
@@ -26,24 +25,21 @@ func NewAuthService(userRepo repository.UserRepository, cfg config.Config) AuthS
 	}
 }
 
-// SendVerificationCode генерирует код, отправляет его на email и сохраняет/обновляет пользователя в БД
+// SendVerificationCode генерирует код, отправляет его на email и сохраняет/обновляет пользователя в БД.
 func (s *authService) SendVerificationCode(emailAddr string) error {
 	code := utils.GenerateVerificationCode()
 
-	// Отправка письма с кодом
 	subject := "Ваш проверочный код"
 	body := fmt.Sprintf("Ваш проверочный код: %s", code)
 	if err := utils.SendEmail(s.cfg.SMTPHost, s.cfg.SMTPPort, s.cfg.SMTPUsername, s.cfg.SMTPPassword, emailAddr, subject, body); err != nil {
 		return err
 	}
 
-	// Проверка, существует ли уже пользователь
 	user, err := s.userRepo.GetUserByEmail(emailAddr)
 	if err != nil {
 		return err
 	}
 	if user == nil {
-		// Создаем нового пользователя
 		newUser := &models.User{
 			Email:            emailAddr,
 			VerificationCode: code,
@@ -51,12 +47,11 @@ func (s *authService) SendVerificationCode(emailAddr string) error {
 		}
 		return s.userRepo.CreateUser(newUser)
 	} else {
-		// Обновляем код в существующей записи и сбрасываем статус подтверждения
 		return s.userRepo.UpdateUserVerification(emailAddr, code, false)
 	}
 }
 
-// VerifyCode проверяет корректность введенного кода и, если все верно, помечает пользователя как подтвержденного
+// VerifyCode проверяет корректность введенного кода и, если верно, помечает пользователя как подтвержденного.
 func (s *authService) VerifyCode(emailAddr, code string) error {
 	user, err := s.userRepo.GetUserByEmail(emailAddr)
 	if err != nil {
@@ -65,11 +60,8 @@ func (s *authService) VerifyCode(emailAddr, code string) error {
 	if user == nil {
 		return fmt.Errorf("пользователь не найден")
 	}
-
 	if user.VerificationCode != code {
 		return fmt.Errorf("неверный проверочный код")
 	}
-
-	// Обновляем статус подтверждения
 	return s.userRepo.UpdateUserVerification(emailAddr, code, true)
 }

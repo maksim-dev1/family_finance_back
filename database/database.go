@@ -1,27 +1,31 @@
-// database/database.go
 package database
 
 import (
 	"database/sql"
+	"family_finance_back/config"
+	"fmt"
 	"log"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
 )
 
-// InitDB открывает БД и выполняет миграцию (создание таблицы)
-func InitDB(dbPath string) *sql.DB {
-	db, err := sql.Open("sqlite3", dbPath)
+// InitDB открывает подключение к PostgreSQL и выполняет миграцию схемы.
+func InitDB(cfg config.Config) *sql.DB {
+	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
+
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("Ошибка при открытии БД: %v", err)
 	}
 
 	createTableQuery := `
 	CREATE TABLE IF NOT EXISTS users (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		email TEXT UNIQUE,
+		id SERIAL PRIMARY KEY,
+		email TEXT UNIQUE NOT NULL,
 		verification_code TEXT,
-		is_verified INTEGER DEFAULT 0,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		is_verified BOOLEAN DEFAULT FALSE,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 	`
 	_, err = db.Exec(createTableQuery)
