@@ -7,12 +7,12 @@ import (
 )
 
 // GenerateVerificationCode генерирует криптографически стойкий 4-значный код.
-func GenerateVerificationCode() string {
+func GenerateVerificationCode() (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(9000))
 	if err != nil {
-		// В случае ошибки возвращаем фиксированный код (лучше обработать ошибку в реальном проекте)
-		return "1000"
+		return "", fmt.Errorf("ошибка генерации кода: %v", err)
 	}
+
 	code := n.Int64() + 1000
-	return fmt.Sprintf("%d", code)
+	return fmt.Sprintf("%d", code), nil
 }
