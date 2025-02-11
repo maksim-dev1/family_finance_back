@@ -35,12 +35,20 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	authService := service.NewAuthService(userRepo, cfg)
 	authHandler := handlers.NewAuthHandler(authService)
+	userHandler := handlers.NewUserHandler(userRepo)
 
 	// Настраиваем роутер с Gorilla Mux
 	router := mux.NewRouter()
+
+	// Публичные маршруты
 	router.HandleFunc("/send-code", authHandler.SendCode).Methods("POST")
 	router.HandleFunc("/verify-code", authHandler.VerifyCode).Methods("POST")
 	router.HandleFunc("/ping", handlers.PingHandler).Methods("GET")
+
+	// Защищённый маршрут: эндпоинт для получения данных пользователя
+	protectedUser := router.PathPrefix("/user").Subrouter()
+	protectedUser.Use(handlers.TokenAuthMiddleware(cfg.JWTSecret))
+	protectedUser.HandleFunc("", userHandler.GetUser).Methods("GET")
 
 	// Создаем HTTP-сервер с таймаутами
 	srv := &http.Server{

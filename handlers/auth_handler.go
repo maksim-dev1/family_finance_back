@@ -47,10 +47,11 @@ func (h *AuthHandler) VerifyCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.authService.VerifyCode(req.Email, req.Code); err != nil {
+	token, err := h.authService.VerifyCode(req.Email, req.Code)
+	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Пользователь подтвержден"})
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Пользователь подтвержден", "token": token})
 }

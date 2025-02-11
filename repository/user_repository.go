@@ -4,12 +4,13 @@ import (
 	"database/sql"
 	"errors"
 	"family_finance_back/models"
+	"time"
 )
 
 type UserRepository interface {
 	GetUserByEmail(email string) (*models.User, error)
 	CreateUser(user *models.User) error
-	UpdateUserVerification(email string, code string, isVerified bool) error
+	UpdateUserVerification(email string, code string, codeExpiresAt time.Time, isVerified bool) error
 }
 
 type userRepository struct {
@@ -21,10 +22,10 @@ func NewUserRepository(db *sql.DB) UserRepository {
 }
 
 func (r *userRepository) GetUserByEmail(email string) (*models.User, error) {
-	query := "SELECT id, email, verification_code, is_verified, created_at FROM users WHERE email = $1"
+	query := "SELECT id, email, verification_code, code_expires_at, is_verified, created_at FROM users WHERE email = $1"
 	row := r.db.QueryRow(query, email)
 	var user models.User
-	err := row.Scan(&user.ID, &user.Email, &user.VerificationCode, &user.IsVerified, &user.CreatedAt)
+	err := row.Scan(&user.ID, &user.Email, &user.VerificationCode, &user.CodeExpiresAt, &user.IsVerified, &user.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // пользователь не найден
@@ -35,14 +36,14 @@ func (r *userRepository) GetUserByEmail(email string) (*models.User, error) {
 }
 
 func (r *userRepository) CreateUser(user *models.User) error {
-	query := "INSERT INTO users (email, verification_code, is_verified) VALUES ($1, $2, $3)"
-	_, err := r.db.Exec(query, user.Email, user.VerificationCode, user.IsVerified)
+	query := "INSERT INTO users (email, verification_code, code_expires_at, is_verified) VALUES ($1, $2, $3, $4)"
+	_, err := r.db.Exec(query, user.Email, user.VerificationCode, user.CodeExpiresAt, user.IsVerified)
 	return err
 }
 
-func (r *userRepository) UpdateUserVerification(email string, code string, isVerified bool) error {
-	query := "UPDATE users SET verification_code = $1, is_verified = $2 WHERE email = $3"
-	result, err := r.db.Exec(query, code, isVerified, email)
+func (r *userRepository) UpdateUserVerification(email string, code string, codeExpiresAt time.Time, isVerified bool) error {
+	query := "UPDATE users SET verification_code = $1, code_expires_at = $2, is_verified = $3 WHERE email = $4"
+	result, err := r.db.Exec(query, code, codeExpiresAt, isVerified, email)
 	if err != nil {
 		return err
 	}

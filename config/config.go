@@ -17,6 +17,9 @@ type Config struct {
 	SMTPPort     int
 	SMTPUsername string
 	SMTPPassword string
+
+	JWTSecret        string // секрет для подписи JWT
+	JWTExpiryMinutes int    // время жизни токена в минутах
 }
 
 // GetConfig читает настройки из переменных окружения или использует значения по умолчанию.
@@ -29,17 +32,23 @@ func GetConfig() Config {
 	if err != nil {
 		smtpPort = 587
 	}
-	return Config{
-		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBPort:     dbPort,
-		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: getEnv("DB_PASSWORD", "password"),
-		DBName:     getEnv("DB_NAME", "familyfinanceDB"),
+	jwtExpiry, err := strconv.Atoi(os.Getenv("JWT_EXPIRY_MINUTES"))
+	if err != nil {
+		jwtExpiry = 60 // по умолчанию 60 минут
+	}
 
-		SMTPHost:     getEnv("SMTP_HOST", "smtp.gmail.com"),
-		SMTPPort:     smtpPort,
-		SMTPUsername: getEnv("SMTP_USERNAME", "maks-vasilev-2017@inbox.ru"),
-		SMTPPassword: getEnv("SMTP_PASSWORD", "mzgmqflxabxsqqkl"),
+	return Config{
+		DBHost:           getEnv("DB_HOST", "localhost"),
+		DBPort:           dbPort,
+		DBUser:           getEnv("DB_USER", "postgres"),
+		DBPassword:       getEnv("DB_PASSWORD", "password"),
+		DBName:           getEnv("DB_NAME", "familyfinanceDB"),
+		SMTPHost:         getEnv("SMTP_HOST", "smtp.gmail.com"),
+		SMTPPort:         smtpPort,
+		SMTPUsername:     getEnv("SMTP_USERNAME", "your_email@example.com"),
+		SMTPPassword:     getEnv("SMTP_PASSWORD", "your_email_password"),
+		JWTSecret:        getEnv("JWT_SECRET", "your_secret_key"),
+		JWTExpiryMinutes: jwtExpiry,
 	}
 }
 

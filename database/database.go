@@ -24,6 +24,7 @@ func InitDB(cfg config.Config) *sql.DB {
 		id SERIAL PRIMARY KEY,
 		email TEXT UNIQUE NOT NULL,
 		verification_code TEXT,
+		code_expires_at TIMESTAMP,
 		is_verified BOOLEAN DEFAULT FALSE,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
