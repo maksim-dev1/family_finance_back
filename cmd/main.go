@@ -78,6 +78,11 @@ func main() {
 	// Настраиваем роутер Gin
 	router := gin.Default()
 
+		// Добавляем endpoint для проверки доступности сервера
+	router.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "pong"})
+	})
+
 	// Публичные маршруты (регистрация, логин, верификация кода)
 	authRoutes := router.Group("/auth")
 	{
