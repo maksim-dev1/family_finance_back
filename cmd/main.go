@@ -8,11 +8,11 @@ import (
 	"os"
 	"time"
 
-	"myapp/config"
-	"myapp/internal/handler"
-	"myapp/internal/middleware"
-	"myapp/internal/repository"
-	"myapp/internal/service"
+	"family_finance_back/config"
+	"family_finance_back/internal/handler"
+	"family_finance_back/internal/middleware"
+	"family_finance_back/internal/repository"
+	"family_finance_back/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"

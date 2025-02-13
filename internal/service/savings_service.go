@@ -4,9 +4,10 @@ import (
 	"errors"
 	"time"
 
+	"family_finance_back/internal/models"
+	"family_finance_back/internal/repository"
+
 	"github.com/google/uuid"
-	"myapp/internal/models"
-	"myapp/internal/repository"
 )
 
 type SavingsService interface {

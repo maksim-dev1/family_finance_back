@@ -5,8 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"family_finance_back/internal/service"
+
 	"github.com/gin-gonic/gin"
-	"myapp/internal/service"
 )
 
 type TransactionHandler struct {

@@ -2,9 +2,8 @@ package repository
 
 import (
 	"database/sql"
-	"time"
 
-	"myapp/internal/models"
+	"family_finance_back/internal/models"
 )
 
 type SavingsGoalRepository interface {

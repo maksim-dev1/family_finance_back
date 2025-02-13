@@ -1,7 +1,7 @@
 package service
 
 import (
-	"myapp/internal/repository"
+	"family_finance_back/internal/repository"
 )
 
 type GamificationService interface {

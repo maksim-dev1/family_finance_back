@@ -3,8 +3,9 @@ package handler
 import (
 	"net/http"
 
+	"family_finance_back/internal/service"
+
 	"github.com/gin-gonic/gin"
-	"myapp/internal/service"
 )
 
 type GamificationHandler struct {

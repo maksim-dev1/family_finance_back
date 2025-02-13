@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"myapp/internal/service"
+	"family_finance_back/internal/service"
 )
 
 type FamilyHandler struct {

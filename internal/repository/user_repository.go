@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"myapp/internal/models"
+	"family_finance_back/internal/models"
 )
 
 type UserRepository interface {

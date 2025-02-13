@@ -3,9 +3,10 @@ package service
 import (
 	"time"
 
+	"family_finance_back/internal/models"
+	"family_finance_back/internal/repository"
+
 	"github.com/google/uuid"
-	"myapp/internal/models"
-	"myapp/internal/repository"
 )
 
 type TransactionService interface {

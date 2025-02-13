@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"time"
 
+	"family_finance_back/internal/service"
+
 	"github.com/gin-gonic/gin"
-	"myapp/internal/service"
 )
 
 type SavingsHandler struct {
@@ -19,11 +20,11 @@ func NewSavingsHandler(savingsService service.SavingsService) *SavingsHandler {
 }
 
 type createSavingsRequest struct {
-	TargetAmount float64  `json:"target_amount" binding:"required"`
-	TargetDate   string   `json:"target_date" binding:"required"`
-	StartDate    string   `json:"start_date" binding:"required"`
-	Description  *string  `json:"description"`
-	FamilyID     *string  `json:"family_id"`
+	TargetAmount float64 `json:"target_amount" binding:"required"`
+	TargetDate   string  `json:"target_date" binding:"required"`
+	StartDate    string  `json:"start_date" binding:"required"`
+	Description  *string `json:"description"`
+	FamilyID     *string `json:"family_id"`
 }
 
 func (h *SavingsHandler) CreateSavingsGoal(c *gin.Context) {

@@ -3,9 +3,10 @@ package handler
 import (
 	"net/http"
 
+	"family_finance_back/internal/models"
+	"family_finance_back/internal/service"
+
 	"github.com/gin-gonic/gin"
-	"myapp/internal/models"
-	"myapp/internal/service"
 )
 
 type SyncHandler struct {

@@ -11,15 +11,15 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 
-	"myapp/config"
-	"myapp/internal/models"
-	"myapp/internal/repository"
+	"family_finance_back/config"
+	"family_finance_back/internal/models"
+	"family_finance_back/internal/repository"
 )
 
 type AuthService interface {
-	Register(name, email string) (string, error) // возвращает сгенерированный код
+	Register(name, email string) (string, error)   // возвращает сгенерированный код
 	Login(email string) (string, error)            // возвращает сгенерированный код
-	VerifyCode(email, code string) (string, error)   // возвращает JWT токен
+	VerifyCode(email, code string) (string, error) // возвращает JWT токен
 }
 
 type authService struct {

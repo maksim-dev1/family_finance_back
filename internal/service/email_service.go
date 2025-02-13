@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/smtp"
 
-	"myapp/config"
+	"family_finance_back/config"
 )
 
 type EmailService interface {

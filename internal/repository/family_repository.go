@@ -3,9 +3,8 @@ package repository
 import (
 	"database/sql"
 	"errors"
-	"time"
 
-	"myapp/internal/models"
+	"family_finance_back/internal/models"
 )
 
 type FamilyRepository interface {
