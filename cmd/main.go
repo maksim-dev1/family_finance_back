@@ -57,6 +57,7 @@ func main() {
 
 	// Инициализируем сервисы
 	authService := service.NewAuthService(userRepo, rdb, cfg)
+	userService := service.NewUserService(userRepo)
 	emailService := service.NewEmailService(cfg)
 	familyService := service.NewFamilyService(familyRepo, familyMemberRepo)
 	transactionService := service.NewTransactionService(transactionRepo)
@@ -66,6 +67,7 @@ func main() {
 
 	// Инициализируем обработчики
 	authHandler := handler.NewAuthHandler(authService, emailService)
+	userHandler := handler.NewUserHandler(userService)
 	familyHandler := handler.NewFamilyHandler(familyService)
 	transactionHandler := handler.NewTransactionHandler(transactionService)
 	savingsHandler := handler.NewSavingsHandler(savingsService)
@@ -75,7 +77,7 @@ func main() {
 	// Настраиваем роутер Gin
 	router := gin.Default()
 
-		// Добавляем endpoint для проверки доступности сервера
+	// Добавляем endpoint для проверки доступности сервера
 	router.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
@@ -92,6 +94,11 @@ func main() {
 	apiRoutes := router.Group("/api")
 	apiRoutes.Use(middleware.JWTMiddleware(cfg.JWTSecret))
 	{
+		// User routes
+		apiRoutes.GET("/users", userHandler.GetAllUsers)
+		apiRoutes.GET("/users/:email", userHandler.GetUserByEmail)
+		apiRoutes.DELETE("/users/:email", userHandler.DeleteUser)
+
 		// Family routes
 		apiRoutes.POST("/families", familyHandler.CreateFamily)
 		apiRoutes.GET("/families", familyHandler.GetFamilies)

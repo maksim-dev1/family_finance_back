@@ -10,7 +10,10 @@ import (
 type UserRepository interface {
 	CreateUser(user *models.User) error
 	GetUserByEmail(email string) (*models.User, error)
+	DeleteUserByEmail(email string) error
+	GetAllUsers() ([]*models.User, error)
 }
+
 
 type userRepository struct {
 	db *sql.DB
@@ -39,4 +42,41 @@ func (r *userRepository) GetUserByEmail(email string) (*models.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *userRepository) GetAllUsers() ([]*models.User, error) {
+	query := `SELECT id, name, email, created_at, updated_at FROM users`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+	return users, nil
+}
+
+
+func (r *userRepository) DeleteUserByEmail(email string) error {
+	query := `DELETE FROM users WHERE email = $1`
+	result, err := r.db.Exec(query, email)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("пользователь не найден")
+	}
+	return nil
 }
