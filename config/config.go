@@ -44,7 +44,7 @@ func LoadConfig() (*Config, error) {
 		SMTPPassword:  os.Getenv("SMTP_PASSWORD"),
 		JWTSecret:     os.Getenv("JWT_SECRET"),
 	}
-	cfg.DBURL = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable search_path=public",
+	cfg.DBURL = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
 
 	return cfg, nil
