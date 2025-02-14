@@ -95,30 +95,48 @@ func main() {
 	apiRoutes.Use(middleware.JWTMiddleware(cfg.JWTSecret))
 	{
 		// User routes
-		apiRoutes.GET("/users", userHandler.GetAllUsers)
-		apiRoutes.GET("/users/:email", userHandler.GetUserByEmail)
-		apiRoutes.DELETE("/users/:email", userHandler.DeleteUser)
+		userGroup := apiRoutes.Group("/user")
+		{
+			userGroup.GET("/get/all", userHandler.GetAllUsers)
+			userGroup.GET("/get/by/email", userHandler.GetUserByEmail)
+			userGroup.DELETE("/delete/by/email", userHandler.DeleteUser)
+		}
 
 		// Family routes
-		apiRoutes.POST("/families", familyHandler.CreateFamily)
-		apiRoutes.GET("/families", familyHandler.GetFamilies)
-		apiRoutes.POST("/families/join", familyHandler.JoinFamily)
+		familyRoutes := router.Group("/family")
+		{
+			familyRoutes.POST("/create", familyHandler.CreateFamily)
+			familyRoutes.GET("/get", familyHandler.GetFamilies)
+			familyRoutes.POST("/join", familyHandler.JoinFamily)
+		}
 
 		// Transaction routes
-		apiRoutes.POST("/transactions", transactionHandler.CreateTransaction)
-		apiRoutes.GET("/transactions/personal", transactionHandler.GetPersonalTransactions)
-		apiRoutes.GET("/transactions/group", transactionHandler.GetGroupTransactions)
+		transactionRoutes := router.Group("/transactions")
+		{
+			transactionRoutes.POST("/create", transactionHandler.CreateTransaction)
+			transactionRoutes.GET("/get/personal", transactionHandler.GetPersonalTransactions)
+			transactionRoutes.GET("/get/group", transactionHandler.GetGroupTransactions)
+		}
 
 		// Savings routes
-		apiRoutes.POST("/savings", savingsHandler.CreateSavingsGoal)
-		apiRoutes.GET("/savings", savingsHandler.GetSavingsGoals)
-		apiRoutes.POST("/savings/calculate", savingsHandler.CalculateSavingPlan)
+		savingsRoutes := router.Group("/savings")
+		{
+			savingsRoutes.POST("/create", savingsHandler.CreateSavingsGoal)
+			savingsRoutes.GET("/get", savingsHandler.GetSavingsGoals)
+			savingsRoutes.POST("/calculate", savingsHandler.CalculateSavingPlan)
+		}
 
 		// Gamification routes
-		apiRoutes.GET("/gamification/score", gamificationHandler.GetUserScore)
+		gamificationRoutes := router.Group("/gamification")
+		{
+			gamificationRoutes.GET("/get/score", gamificationHandler.GetUserScore)
+		}
 
 		// Sync routes
-		apiRoutes.POST("/sync/transactions", syncHandler.SyncTransactions)
+		syncRoutes := router.Group("/sync")
+		{
+			syncRoutes.POST("/transactions", syncHandler.SyncTransactions)
+		}
 	}
 
 	// Запускаем сервер
