@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
 	"family_finance_back/config"
+	"family_finance_back/internal/db"
 	"family_finance_back/internal/handler"
 	"family_finance_back/internal/middleware"
 	"family_finance_back/internal/repository"
@@ -32,11 +32,8 @@ func main() {
 		log.Fatalf("Не удалось загрузить конфигурацию: %v", err)
 	}
 
-	// Подключаемся к PostgreSQL
-	db, err := sql.Open("postgres", cfg.DBURL)
-	if err != nil {
-		log.Fatalf("Ошибка подключения к БД: %v", err)
-	}
+	// Инициализируем PostgreSQL с созданием таблиц (миграцией)
+	db := database.InitDB(*cfg)
 	defer db.Close()
 
 	// Инициализируем Redis
@@ -98,6 +95,7 @@ func main() {
 		// Family routes
 		apiRoutes.POST("/families", familyHandler.CreateFamily)
 		apiRoutes.GET("/families", familyHandler.GetFamilies)
+		apiRoutes.POST("/families/join", familyHandler.JoinFamily)
 
 		// Transaction routes
 		apiRoutes.POST("/transactions", transactionHandler.CreateTransaction)
