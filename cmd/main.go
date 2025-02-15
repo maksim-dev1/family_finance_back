@@ -88,6 +88,9 @@ func main() {
 		authRoutes.POST("/register", authHandler.Register)
 		authRoutes.POST("/login", authHandler.Login)
 		authRoutes.POST("/verify", authHandler.VerifyCode)
+		authRoutes.POST("/refresh", authHandler.RefreshToken)
+		authRoutes.POST("/logout", authHandler.Logout)
+
 	}
 
 	// Протектед маршруты с JWT middleware
@@ -98,6 +101,7 @@ func main() {
 		apiRoutes.GET("/users", userHandler.GetAllUsers)
 		apiRoutes.GET("/users/:email", userHandler.GetUserByEmail)
 		apiRoutes.DELETE("/users/:email", userHandler.DeleteUser)
+
 		// Family routes
 		apiRoutes.POST("/families", familyHandler.CreateFamily)
 		apiRoutes.GET("/families", familyHandler.GetFamilies)

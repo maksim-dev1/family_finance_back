@@ -17,9 +17,11 @@ import (
 )
 
 type AuthService interface {
-	Register(name, email string) (string, error)   // возвращает сгенерированный код
-	Login(email string) (string, error)            // возвращает сгенерированный код
-	VerifyCode(email, code string) (string, error) // возвращает JWT токен
+	Register(name, email string) (string, error)
+	Login(email string) (string, error)
+	VerifyCode(email, code string) (string, string, error)
+	RefreshToken(refreshToken string) (string, string, error)
+	Logout(userID string) error
 }
 
 type authService struct {
@@ -36,14 +38,36 @@ func NewAuthService(userRepo repository.UserRepository, redis *redis.Client, cfg
 	}
 }
 
+// Генерация 6-значного кода
 func generateCode() (string, error) {
 	max := big.NewInt(899999)
 	n, err := rand.Int(rand.Reader, max)
 	if err != nil {
 		return "", err
 	}
-	code := fmt.Sprintf("%06d", n.Int64()+100000)
-	return code, nil
+	return fmt.Sprintf("%06d", n.Int64()+100000), nil
+}
+
+// Генерация access и refresh токенов
+func (s *authService) generateTokens(user *models.User) (string, string, error) {
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID,
+		"email":   user.Email,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+	})
+	accessTokenStr, err := accessToken.SignedString([]byte(s.cfg.JWTSecret))
+	if err != nil {
+		return "", "", err
+	}
+
+	refreshToken := uuid.New().String()
+	ctx := context.Background()
+	err = s.redis.Set(ctx, "refresh:"+user.ID, refreshToken, 7*24*time.Hour).Err()
+	if err != nil {
+		return "", "", err
+	}
+
+	return accessTokenStr, refreshToken, nil
 }
 
 func (s *authService) Register(name, email string) (string, error) {
@@ -86,28 +110,52 @@ func (s *authService) Login(email string) (string, error) {
 	return code, nil
 }
 
-func (s *authService) VerifyCode(email, code string) (string, error) {
+func (s *authService) VerifyCode(email, code string) (string, string, error) {
 	ctx := context.Background()
 	storedCode, err := s.redis.Get(ctx, email).Result()
 	if err != nil {
-		return "", fmt.Errorf("код истёк или неверный")
+		return "", "", fmt.Errorf("код истёк или неверный")
 	}
 	if storedCode != code {
-		return "", fmt.Errorf("неверный код")
+		return "", "", fmt.Errorf("неверный код")
 	}
 	s.redis.Del(ctx, email)
 	user, err := s.userRepo.GetUserByEmail(email)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
-	})
-	tokenString, err := token.SignedString([]byte(s.cfg.JWTSecret))
+	return s.generateTokens(user)
+}
+
+func (s *authService) RefreshToken(refreshToken string) (string, string, error) {
+	ctx := context.Background()
+	keys, err := s.redis.Keys(ctx, "refresh:*").Result()
 	if err != nil {
-		return "", err
+		return "", "", fmt.Errorf("ошибка проверки refresh-токена")
 	}
-	return tokenString, nil
+
+	var userID string
+	for _, key := range keys {
+		storedToken, _ := s.redis.Get(ctx, key).Result()
+		if storedToken == refreshToken {
+			userID = key[len("refresh:"):]
+			break
+		}
+	}
+
+	if userID == "" {
+		return "", "", fmt.Errorf("недействительный refresh-токен")
+	}
+
+	user, err := s.userRepo.GetUserByID(userID)
+	if err != nil {
+		return "", "", fmt.Errorf("пользователь не найден")
+	}
+
+	return s.generateTokens(user)
+}
+
+func (s *authService) Logout(userID string) error {
+	ctx := context.Background()
+	return s.redis.Del(ctx, "refresh:"+userID).Err()
 }

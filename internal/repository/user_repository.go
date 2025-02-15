@@ -10,6 +10,7 @@ import (
 type UserRepository interface {
 	CreateUser(user *models.User) error
 	GetUserByEmail(email string) (*models.User, error)
+	GetUserByID(id string) (*models.User, error)
 	DeleteUserByEmail(email string) error
 	GetAllUsers() ([]*models.User, error)
 }
@@ -39,6 +40,16 @@ func (r *userRepository) GetUserByEmail(email string) (*models.User, error) {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("пользователь не найден")
 		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *userRepository) GetUserByID(id string) (*models.User, error) {
+	var user models.User
+	err := r.db.QueryRow("SELECT id, name, email FROM users WHERE id = $1", id).
+		Scan(&user.ID, &user.Name, &user.Email)
+	if err != nil {
 		return nil, err
 	}
 	return &user, nil
