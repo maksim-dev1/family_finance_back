@@ -43,6 +43,23 @@ func (h *UserHandler) GetUserByEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
+// Новый endpoint для получения профиля текущего пользователя
+func (h *UserHandler) GetProfile(c *gin.Context) {
+	// Предполагается, что JWTMiddleware установил в контексте "user_id"
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Пользователь не авторизован"})
+		return
+	}
+
+	user, err := h.userService.GetUserByID(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Пользователь не найден"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
 
 // Удаление пользователя по email
 func (h *UserHandler) DeleteUser(c *gin.Context) {

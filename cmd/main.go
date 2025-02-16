@@ -101,6 +101,7 @@ func main() {
 		apiRoutes.GET("/users", userHandler.GetAllUsers)
 		apiRoutes.GET("/users/:email", userHandler.GetUserByEmail)
 		apiRoutes.DELETE("/users/:email", userHandler.DeleteUser)
+		apiRoutes.GET("/profile", userHandler.GetProfile)
 
 		// Family routes
 		apiRoutes.POST("/families", familyHandler.CreateFamily)
