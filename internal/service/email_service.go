@@ -22,6 +22,7 @@ func NewEmailService(cfg *config.Config) EmailService {
 }
 
 func (s *emailService) SendCode(to, code string) error {
+	log.Printf("Начало отправки email на адрес %s с кодом %s", to, code)
 	subject := "Ваш код подтверждения"
 	body := fmt.Sprintf("Ваш код подтверждения: %s", code)
 	msg := "From: " + s.cfg.SMTPUsername + "\n" +
