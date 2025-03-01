@@ -21,6 +21,9 @@ import (
 )
 
 func main() {
+	// Устанавливаем формат логирования сразу
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	// Загружаем .env файл
 	if err := godotenv.Load(); err != nil {
 		log.Println("Не удалось загрузить .env файл")
