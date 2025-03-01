@@ -24,6 +24,11 @@ func main() {
 	// Устанавливаем формат логирования сразу
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	gin.SetMode(gin.DebugMode)
+	log.SetOutput(os.Stdout) // Перенаправление логов в stdout
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.Println("Логирование настроено, сервер запускается...")
+
 	// Загружаем .env файл
 	if err := godotenv.Load(); err != nil {
 		log.Println("Не удалось загрузить .env файл")
