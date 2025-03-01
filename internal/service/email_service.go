@@ -21,14 +21,15 @@ func NewEmailService(cfg *config.Config) EmailService {
 	return &emailService{cfg: cfg}
 }
 
+// TODO: Убрать логи
 func (s *emailService) SendCode(to, code string) error {
 	log.Printf("Начало отправки email на адрес %s с кодом %s", to, code)
+
 	subject := "Ваш код подтверждения"
 	body := fmt.Sprintf("Ваш код подтверждения: %s", code)
-	msg := "From: " + s.cfg.SMTPUsername + "\n" +
-		"To: " + to + "\n" +
-		"Subject: " + subject + "\n\n" +
-		body
+	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
+		s.cfg.SMTPUsername, to, subject, body)
+	log.Printf("Формируется сообщение для %s: %s", to, msg)
 
 	addr := fmt.Sprintf("%s:%s", s.cfg.SMTPHost, s.cfg.SMTPPort)
 	auth := smtp.PlainAuth("", s.cfg.SMTPUsername, s.cfg.SMTPPassword, s.cfg.SMTPHost)

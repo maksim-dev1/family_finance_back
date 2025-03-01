@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"family_finance_back/internal/service"
+
+	"github.com/gin-gonic/gin"
 )
 
 type AuthHandler struct {
@@ -12,14 +14,12 @@ type AuthHandler struct {
 	emailService service.EmailService
 }
 
-
 func NewAuthHandler(authService service.AuthService, emailService service.EmailService) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
+		authService:  authService,
 		emailService: emailService,
 	}
 }
-
 
 type emailRequest struct {
 	Email string `json:"email" binding:"required,email"`
@@ -40,6 +40,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	// TODO: Убрать логи
+	log.Printf("Запрос на регистрацию для email: %s", req.Email)
 
 	code, err := h.authService.Register("User", req.Email)
 	if err != nil {
