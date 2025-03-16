@@ -3,13 +3,16 @@ package auth
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
 )
 
-// AuthHandler содержит обработчики HTTP для авторизации.
+// AuthHandler содержит HTTP‑обработчики для авторизации.
 type AuthHandler struct {
 	authService *AuthService
+	// Добавим доступ к базе для проверки регистрации
 }
 
 // NewAuthHandler создаёт новый экземпляр AuthHandler.
@@ -44,31 +47,59 @@ type LogoutRequest struct {
 	Token string `json:"token" binding:"required"`
 }
 
-// Register обрабатывает запрос на регистрацию и отправку верификационного кода.
+// checkAlreadyAuthorized проверяет, передан ли валидный access токен в заголовке.
+func checkAlreadyAuthorized(c *gin.Context, secret string) bool {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return false
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return false
+	}
+	tokenString := parts[1]
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	})
+	return err == nil && token.Valid
+}
+
+// Register обрабатывает запрос на регистрацию.
 func (h *AuthHandler) Register(c *gin.Context) {
+	// Если уже авторизован, возвращаем сообщение
+	if checkAlreadyAuthorized(c, h.authService.cfg.JWTSecret) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "пользователь уже авторизован"})
+		return
+	}
+
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	err := h.authService.InitiateRegistration(req.Name, req.Email)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Внутри InitiateRegistration проверяется наличие пользователя с данным email.
+	if err := h.authService.InitiateRegistration(req.Name, req.Email); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "код подтверждения отправлен на email"})
 }
 
-// Login обрабатывает запрос на вход и отправку верификационного кода.
+// Login обрабатывает запрос на вход.
 func (h *AuthHandler) Login(c *gin.Context) {
+	// Если уже авторизован, возвращаем сообщение
+	if checkAlreadyAuthorized(c, h.authService.cfg.JWTSecret) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "пользователь уже авторизован"})
+		return
+	}
+
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	err := h.authService.InitiateLogin(req.Email)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.authService.InitiateLogin(req.Email); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "код подтверждения отправлен на email"})
@@ -86,7 +117,6 @@ func (h *AuthHandler) Verify(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	// Преобразуем JSON-строку в объект для ответа
 	var tokenData map[string]string
 	if err := json.Unmarshal([]byte(tokensJSON), &tokenData); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "не удалось обработать токены"})
@@ -110,7 +140,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"access_token": newAccessToken})
 }
 
-// Logout обрабатывает выход пользователя, добавляя токен в blacklist.
+// Logout обрабатывает выход пользователя.
 func (h *AuthHandler) Logout(c *gin.Context) {
 	var req LogoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
