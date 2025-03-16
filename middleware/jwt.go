@@ -1,43 +1,72 @@
 package middleware
 
 import (
-    "net/http"
-    "strings"
+	"context"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
 
-    "github.com/gin-gonic/gin"
-    "github.com/golang-jwt/jwt/v4"
+	"family_finance_back/config"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
+	"github.com/golang-jwt/jwt/v4"
 )
 
-// JWTMiddleware проверяет JWT-токен и устанавливает информацию о пользователе в контекст.
-func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        authHeader := c.GetHeader("Authorization")
-        if authHeader == "" {
-            c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization header required"})
-            c.Abort()
-            return
-        }
+// JWTAuthMiddleware проверяет наличие и корректность JWT токена в заголовке Authorization.
+// Также проверяет, что токен не находится в blacklist (т.е. не был отозван).
+func JWTAuthMiddleware(cfg *config.Config, redisClient *redis.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "требуется заголовок Authorization"})
+			return
+		}
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "формат заголовка: Bearer {token}"})
+			return
+		}
+		tokenString := parts[1]
 
-        tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-        token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-            // Проверяем метод подписи
-            if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-                return nil, jwt.ErrSignatureInvalid
-            }
-            return []byte(jwtSecret), nil
-        })
+		// Проверяем, не находится ли токен в blacklist
+		ctx := context.Background()
+		exists, err := redisClient.Exists(ctx, "blacklist:"+tokenString).Result()
+		if err == nil && exists == 1 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "токен недействителен"})
+			return
+		}
 
-        if err != nil || !token.Valid {
-            c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
-            c.Abort()
-            return
-        }
-
-        // Если необходимо, можно установить данные пользователя в контекст
-        if claims, ok := token.Claims.(jwt.MapClaims); ok {
-            c.Set("user", claims)
-        }
-
-        c.Next()
-    }
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("неожиданный метод подписи: %v", token.Header["alg"])
+			}
+			return []byte(cfg.JWTSecret), nil
+		})
+		if err != nil || !token.Valid {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "неверный токен"})
+			return
+		}
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "неверные данные токена"})
+			return
+		}
+		// Проверяем время истечения токена
+		if exp, ok := claims["exp"].(float64); ok {
+			if time.Unix(int64(exp), 0).Before(time.Now()) {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "срок действия токена истёк"})
+				return
+			}
+		}
+		// Извлекаем email пользователя и сохраняем в контексте
+		email, ok := claims["email"].(string)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "неверная нагрузка токена"})
+			return
+		}
+		c.Set("user_email", email)
+		c.Next()
+	}
 }

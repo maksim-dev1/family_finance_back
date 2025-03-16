@@ -1,16 +1,12 @@
 package models
 
-import (
-    "time"
+import "time"
 
-    "github.com/google/uuid"
-)
-
-// User представляет пользователя в системе.
+// User представляет структуру пользователя в системе Family Finance.
 type User struct {
-    ID        uuid.UUID `json:"id"`
-    Name      string    `json:"name"`
-    Email     string    `json:"email"`
-    CreatedAt time.Time `json:"created_at"`
-    UpdatedAt time.Time `json:"updated_at"`
+	ID        string    `json:"id"`         // UUID
+	Name      string    `json:"name"`       // Имя пользователя
+	Email     string    `json:"email"`      // Email (уникальное, используется для авторизации)
+	CreatedAt time.Time `json:"created_at"` // Дата регистрации
+	UpdatedAt time.Time `json:"updated_at"` // Дата последнего обновления профиля
 }
