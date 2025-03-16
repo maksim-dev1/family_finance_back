@@ -42,14 +42,15 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// DeleteUser удаляет пользователя по email, который передается в query-параметре.
+// DeleteUser удаляет текущего аутентифицированного пользователя по email, извлечённому из токена.
 func (h *UserHandler) DeleteUser(c *gin.Context) {
-	email := c.Query("email")
-	if email == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "необходим параметр email"})
+	// Извлекаем email пользователя, установленный JWT middleware
+	email, exists := c.Get("user_email")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "пользователь не авторизован"})
 		return
 	}
-	err := h.userService.DeleteUserByEmail(email)
+	err := h.userService.DeleteUserByEmail(email.(string))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
