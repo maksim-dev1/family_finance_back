@@ -140,14 +140,22 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"access_token": newAccessToken})
 }
 
-// Logout обрабатывает выход пользователя.
+// Logout обрабатывает выход пользователя. Токен извлекается из заголовка Authorization.
 func (h *AuthHandler) Logout(c *gin.Context) {
-	var req LogoutRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "заголовок Authorization не найден"})
 		return
 	}
-	if err := h.authService.Logout(req.Token); err != nil {
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "формат заголовка: Bearer {token}"})
+		return
+	}
+	tokenString := parts[1]
+
+	// Вызываем логику logout для удаления токена (добавления его в blacklist).
+	if err := h.authService.Logout(tokenString); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
