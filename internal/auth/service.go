@@ -189,8 +189,8 @@ func (a *AuthService) VerifyCode(email, code string) (string, error) {
 	return string(jsonBytes), nil
 }
 
-// generateJWT генерирует JWT токен с заданным временем жизни для access-токена 
-// или без срока действия для refresh-токена, в зависимости от tokenType.
+// generateJWT генерирует JWT токен с заданным временем жизни для access-токена
+// или для refresh-токена, который теперь живёт 30 дней.
 func (a *AuthService) generateJWT(email string, duration time.Duration, tokenType string) (string, error) {
 	claims := jwt.MapClaims{
 		"email":      email,
@@ -198,10 +198,11 @@ func (a *AuthService) generateJWT(email string, duration time.Duration, tokenTyp
 	}
 	var secret []byte
 	if tokenType == "refresh" {
-		// Для refresh-токена не задаём срок действия
+		// Для refresh-токена задаём срок действия 30 дней.
+		claims["exp"] = time.Now().Add(30 * 24 * time.Hour).Unix()
 		secret = []byte(a.cfg.JWTSecret + "_refresh")
 	} else {
-		// Для access-токена задаём срок действия (1 час)
+		// Для access-токена задаём срок действия, переданный в параметре (например, 1 час).
 		claims["exp"] = time.Now().Add(duration).Unix()
 		secret = []byte(a.cfg.JWTSecret)
 	}
@@ -209,31 +210,38 @@ func (a *AuthService) generateJWT(email string, duration time.Duration, tokenTyp
 	return token.SignedString(secret)
 }
 
-
-// RefreshToken проверяет refresh-токен и генерирует новый access-токен.
-func (a *AuthService) RefreshToken(refreshToken string) (string, error) {
+// RefreshToken проверяет refresh-токен и генерирует новый access-токен и новый refresh-токен.
+func (a *AuthService) RefreshToken(refreshToken string) (string, string, error) {
 	token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
+		// Проверка алгоритма подписи.
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("неожиданный метод подписи: %v", token.Header["alg"])
 		}
 		return []byte(a.cfg.JWTSecret + "_refresh"), nil
 	})
 	if err != nil {
-		return "", errors.New("refresh токен недействителен, требуется повторная авторизация")
+		return "", "", errors.New("refresh токен недействителен, требуется повторная авторизация")
 	}
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		email, ok := claims["email"].(string)
 		if !ok {
-			return "", errors.New("неверные данные токена")
+			return "", "", errors.New("неверные данные токена")
 		}
+		// Генерируем новый access-токен (1 час).
 		newAccessToken, err := a.generateJWT(email, time.Hour, "access")
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
-		return newAccessToken, nil
+		// Генерируем новый refresh-токен (30 дней).
+		newRefreshToken, err := a.generateJWT(email, 0, "refresh")
+		if err != nil {
+			return "", "", err
+		}
+		return newAccessToken, newRefreshToken, nil
 	}
-	return "", errors.New("неверный refresh токен")
+	return "", "", errors.New("неверный refresh токен")
 }
+
 
 // Logout "выходит" из системы, добавляя токен в blacklist в Redis.
 func (a *AuthService) Logout(tokenString string) error {

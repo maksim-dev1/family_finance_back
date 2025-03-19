@@ -125,19 +125,22 @@ func (h *AuthHandler) Verify(c *gin.Context) {
 	c.JSON(http.StatusOK, tokenData)
 }
 
-// Refresh обрабатывает обновление access токена по refresh токену.
+// Refresh обрабатывает запрос обновления токенов: генерирует новый access-токен и новый refresh-токен.
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	newAccessToken, err := h.authService.RefreshToken(req.RefreshToken)
+	newAccessToken, newRefreshToken, err := h.authService.RefreshToken(req.RefreshToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"access_token": newAccessToken})
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  newAccessToken,
+		"refresh_token": newRefreshToken,
+	})
 }
 
 // Logout обрабатывает выход пользователя. Токен извлекается из заголовка Authorization.
