@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"family_finance_back/internal/service"
 )
@@ -105,4 +106,30 @@ func (h *AuthHandler) VerifyRegistrationCodeHandler(w http.ResponseWriter, r *ht
 	}
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("пользователь создан"))
+}
+
+func (h *AuthHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	// Извлекаем токен из заголовка Authorization в формате "Bearer <token>"
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		http.Error(w, "Неверный формат заголовка Authorization", http.StatusUnauthorized)
+		return
+	}
+
+	token := parts[1]
+	err := h.authService.Logout(token)
+	if err != nil {
+		http.Error(w, "Ошибка логаута: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	// Можно вернуть результат логаута
+	json.NewEncoder(w).Encode(map[string]string{"message": "Вы успешно вышли из аккаунта"})
 }

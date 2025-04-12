@@ -37,11 +37,12 @@ func main() {
 	// Инициализируем обработчики
 	authHandler := handlers.NewAuthHandler(authSvc)
 
-	// Настраиваем маршруты
-	http.HandleFunc("/login/request", authHandler.RequestLoginCodeHandler)
-	http.HandleFunc("/login/verify", authHandler.VerifyLoginCodeHandler)
-	http.HandleFunc("/register/request", authHandler.RequestRegistrationCodeHandler)
-	http.HandleFunc("/register/verify", authHandler.VerifyRegistrationCodeHandler)
+	// Группируем эндпоинты, связанные с авторизацией, под префиксом /auth
+	http.HandleFunc("/auth/login", authHandler.RequestLoginCodeHandler)
+	http.HandleFunc("/auth/login/verify", authHandler.VerifyLoginCodeHandler)
+	http.HandleFunc("/auth/register", authHandler.RequestRegistrationCodeHandler)
+	http.HandleFunc("/auth/register/verify", authHandler.VerifyRegistrationCodeHandler)
+	http.HandleFunc("/auth/logout", authHandler.LogoutHandler)
 
 	log.Println("Сервер запущен на порту 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

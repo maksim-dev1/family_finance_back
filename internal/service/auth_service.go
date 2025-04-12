@@ -17,6 +17,7 @@ type AuthService interface {
 	VerifyLoginCode(email, code string) (string, error)
 	RequestRegistrationCode(email string) error
 	VerifyRegistrationCode(email, code, name, surname, nickname string) error
+	Logout(token string) error
 }
 
 type authService struct {
@@ -67,7 +68,7 @@ func (s *authService) VerifyLoginCode(email, code string) (string, error) {
 	if storedCode != code {
 		return "", errors.New("неверный код")
 	}
-	// Генерируем JWT (без срока истечения, пока пользователь не выйдет)
+	// Генерируем JWT (с очень большим сроком жизни)
 	token, err := util.GenerateJWT(email, s.jwtSecret)
 	if err != nil {
 		return "", err
@@ -79,7 +80,6 @@ func (s *authService) VerifyLoginCode(email, code string) (string, error) {
 
 // RequestRegistrationCode отправляет код для регистрации
 func (s *authService) RequestRegistrationCode(email string) error {
-	// Можно добавить проверку, что пользователь с такой почтой уже не существует
 	user, err := s.userRepo.GetByEmail(email)
 	if err != nil {
 		return err
@@ -122,4 +122,10 @@ func (s *authService) VerifyRegistrationCode(email, code, name, surname, nicknam
 	// Удаляем код из Redis
 	s.redisClient.Del(s.ctx, "register:"+email)
 	return nil
+}
+
+// Logout добавляет токен в blacklist в Redis, чтобы его нельзя было использовать далее
+func (s *authService) Logout(token string) error {
+	// Сохраняем токен в blacklist с большим TTL (например, 100 лет)
+	return s.redisClient.Set(s.ctx, "blacklist:"+token, "true", 100*365*24*time.Hour).Err()
 }
