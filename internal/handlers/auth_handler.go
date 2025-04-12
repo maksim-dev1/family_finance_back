@@ -76,37 +76,51 @@ func (h *AuthHandler) VerifyLoginCodeHandler(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
-// RequestRegistrationCodeHandler для запроса кода регистрации
+// RequestRegistrationCodeHandler для запроса кода регистрации с возвратом UUID
 func (h *AuthHandler) RequestRegistrationCodeHandler(w http.ResponseWriter, r *http.Request) {
-	var req RegistrationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" || req.Name == "" || req.Surname == "" {
-		http.Error(w, "неправильный запрос", http.StatusBadRequest)
-		return
-	}
-	err := h.authService.RequestRegistrationCode(req.Email)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("код отправлен"))
+    type Request struct {
+        Email string `json:"email"`
+    }
+    var req Request
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" {
+        http.Error(w, "неправильный запрос", http.StatusBadRequest)
+        return
+    }
+    // Получаем UUID от сервиса
+    uuidKey, err := h.authService.RequestRegistrationCode(req.Email)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+    // Отправляем UUID клиенту
+    json.NewEncoder(w).Encode(map[string]string{"registration_id": uuidKey})
 }
 
-// VerifyRegistrationCodeHandler для подтверждения регистрации
+
+// VerifyRegistrationCodeHandler для подтверждения регистрации с использованием UUID
 func (h *AuthHandler) VerifyRegistrationCodeHandler(w http.ResponseWriter, r *http.Request) {
-	var req RegisterCodeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" || req.Code == "" || req.Name == "" || req.Surname == "" {
-		http.Error(w, "неправильный запрос", http.StatusBadRequest)
-		return
-	}
-	err := h.authService.VerifyRegistrationCode(req.Email, req.Code, req.Name, req.Surname, req.Nickname)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("пользователь создан"))
+    type Request struct {
+        RegistrationID string `json:"registration_id"`
+        Code           string `json:"code"`
+        Name           string `json:"name"`
+        Surname        string `json:"surname"`
+        Nickname       string `json:"nickname"`
+    }
+    var req Request
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RegistrationID == "" || req.Code == "" || req.Name == "" || req.Surname == "" {
+        http.Error(w, "неправильный запрос", http.StatusBadRequest)
+        return
+    }
+
+    err := h.authService.VerifyRegistrationCode(req.RegistrationID, req.Code, req.Name, req.Surname, req.Nickname)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusUnauthorized)
+        return
+    }
+    w.WriteHeader(http.StatusCreated)
+    w.Write([]byte("пользователь создан"))
 }
+
 
 func (h *AuthHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	// Извлекаем токен из заголовка Authorization в формате "Bearer <token>"
