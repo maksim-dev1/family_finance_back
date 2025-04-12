@@ -16,28 +16,25 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
-// LoginRequest принимает JSON с полем email для запроса кода
+// Для запроса кода авторизации (login) – требуется только email
 type LoginRequest struct {
 	Email string `json:"email"`
 }
 
-// CodeRequest принимает JSON с email и кодом
-type CodeRequest struct {
-	Email string `json:"email"`
-	Code  string `json:"code"`
+// Для подтверждения кода авторизации – теперь передаётся временный UUID (temp_id)
+type VerifyLoginRequest struct {
+	TempID string `json:"temp_id"`
+	Code   string `json:"code"`
 }
 
-// RegistrationRequest для начала регистрации
+// Для запроса кода регистрации – требуется только email
 type RegistrationRequest struct {
-	Email    string `json:"email"`
-	Name     string `json:"name"`
-	Surname  string `json:"surname"`
-	Nickname string `json:"nickname"`
+	Email string `json:"email"`
 }
 
-// RegisterCodeRequest для подтверждения регистрации
-type RegisterCodeRequest struct {
-	Email    string `json:"email"`
+// Для подтверждения регистрации – передаются temp_id, код, имя, фамилия и никнейм
+type VerifyRegistrationRequest struct {
+	TempID   string `json:"temp_id"`
 	Code     string `json:"code"`
 	Name     string `json:"name"`
 	Surname  string `json:"surname"`
@@ -48,79 +45,73 @@ type RegisterCodeRequest struct {
 func (h *AuthHandler) RequestLoginCodeHandler(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" {
-		http.Error(w, "неправильный запрос", http.StatusBadRequest)
+		http.Error(w, "Неправильный запрос: поле 'email' обязательно для заполнения", http.StatusBadRequest)
 		return
 	}
-	err := h.authService.RequestLoginCode(req.Email)
+	tempID, err := h.authService.RequestLoginCode(req.Email)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Ошибка запроса кода авторизации: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("код отправлен"))
+	json.NewEncoder(w).Encode(map[string]string{"temp_id": tempID})
 }
 
 // VerifyLoginCodeHandler для проверки кода и авторизации
 func (h *AuthHandler) VerifyLoginCodeHandler(w http.ResponseWriter, r *http.Request) {
-	var req CodeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" || req.Code == "" {
-		http.Error(w, "неправильный запрос", http.StatusBadRequest)
+	var req VerifyLoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.TempID == "" || req.Code == "" {
+		http.Error(w, "Неправильный запрос: поля 'temp_id' и 'code' обязательны для заполнения", http.StatusBadRequest)
 		return
 	}
-	token, err := h.authService.VerifyLoginCode(req.Email, req.Code)
+	token, err := h.authService.VerifyLoginCode(req.TempID, req.Code)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		http.Error(w, "Ошибка верификации кода авторизации: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
-	// Возвращаем токен
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
-// RequestRegistrationCodeHandler для запроса кода регистрации с возвратом UUID
+// RequestRegistrationCodeHandler изменён: принимает только email и возвращает temp_id
 func (h *AuthHandler) RequestRegistrationCodeHandler(w http.ResponseWriter, r *http.Request) {
-    type Request struct {
-        Email string `json:"email"`
-    }
-    var req Request
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" {
-        http.Error(w, "неправильный запрос", http.StatusBadRequest)
-        return
-    }
-    // Получаем UUID от сервиса
-    uuidKey, err := h.authService.RequestRegistrationCode(req.Email)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
-        return
-    }
-    // Отправляем UUID клиенту
-    json.NewEncoder(w).Encode(map[string]string{"registration_id": uuidKey})
+	var req RegistrationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" {
+		http.Error(w, "Неправильный запрос: поле 'email' обязательно для заполнения", http.StatusBadRequest)
+		return
+	}
+
+	// Метод возвращает temp_id или подробную ошибку
+	tempID, err := h.authService.RequestRegistrationCode(req.Email)
+	if err != nil {
+		// Клиенту возвращаем детальное сообщение об ошибке
+		http.Error(w, "Ошибка запроса кода регистрации: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"temp_id": tempID})
 }
 
-
-// VerifyRegistrationCodeHandler для подтверждения регистрации с использованием UUID
+// VerifyRegistrationCodeHandler изменён: принимает temp_id и дополнительные данные
 func (h *AuthHandler) VerifyRegistrationCodeHandler(w http.ResponseWriter, r *http.Request) {
-    type Request struct {
-        RegistrationID string `json:"registration_id"`
-        Code           string `json:"code"`
-        Name           string `json:"name"`
-        Surname        string `json:"surname"`
-        Nickname       string `json:"nickname"`
-    }
-    var req Request
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RegistrationID == "" || req.Code == "" || req.Name == "" || req.Surname == "" {
-        http.Error(w, "неправильный запрос", http.StatusBadRequest)
-        return
-    }
-
-    err := h.authService.VerifyRegistrationCode(req.RegistrationID, req.Code, req.Name, req.Surname, req.Nickname)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusUnauthorized)
-        return
-    }
-    w.WriteHeader(http.StatusCreated)
-    w.Write([]byte("пользователь создан"))
+	var req VerifyRegistrationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
+		req.TempID == "" || req.Code == "" || req.Name == "" || req.Surname == "" {
+		http.Error(w, "Неправильный запрос: поля 'temp_id', 'code', 'name' и 'surname' обязательны", http.StatusBadRequest)
+		return
+	}
+	err := h.authService.VerifyRegistrationCode(req.TempID, req.Code, req.Name, req.Surname, req.Nickname)
+	if err != nil {
+		// Более подробное сообщение об ошибке пользователю
+		http.Error(w, "Ошибка подтверждения регистрации: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Пользователь успешно создан"))
 }
-
 
 func (h *AuthHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	// Извлекаем токен из заголовка Authorization в формате "Bearer <token>"

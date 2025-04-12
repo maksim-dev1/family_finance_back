@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -14,10 +15,10 @@ import (
 )
 
 type AuthService interface {
-	RequestLoginCode(email string) error
-	VerifyLoginCode(email, code string) (string, error)
+	RequestLoginCode(email string) (string, error)
+	VerifyLoginCode(tempID, code string) (string, error)
 	RequestRegistrationCode(email string) (string, error)
-	VerifyRegistrationCode(email, code, name, surname, nickname string) error
+	VerifyRegistrationCode(tempID, code, name, surname, nickname string) error
 	Logout(token string) error
 }
 
@@ -40,97 +41,113 @@ func NewAuthService(userRepo repository.UserRepository, emailSvc EmailService, r
 }
 
 // RequestLoginCode отправляет код, если почта существует
-func (s *authService) RequestLoginCode(email string) error {
+func (s *authService) RequestLoginCode(email string) (string, error) {
+	// Проверяем, существует ли пользователь
 	user, err := s.userRepo.GetByEmail(email)
 	if err != nil {
-		return err
+		return "", errors.New("не удалось получить данные пользователя, попробуйте позже")
 	}
 	if user == nil {
-		return errors.New("почта не найдена")
+		return "", errors.New("пользователь с указанным email не найден")
 	}
 
 	code := util.GenerateCode()
-	// Сохраняем код в Redis с TTL 90 секунд
-	err = s.redisClient.Set(s.ctx, "login:"+email, code, 90*time.Second).Err()
+	tempID := uuid.New().String()
+
+	data := map[string]string{
+		"email": email,
+		"code":  code,
+	}
+	serialized, err := json.Marshal(data)
 	if err != nil {
-		return err
+		return "", errors.New("не удалось сформировать данные для отправки кода")
 	}
 
-	// Отправляем код на почту
-	return s.emailSvc.SendCode(email, code)
+	err = s.redisClient.Set(s.ctx, "login:"+tempID, serialized, 90*time.Second).Err()
+	if err != nil {
+		return "", errors.New("не удалось сохранить данные авторизации, повторите попытку позже")
+	}
+
+	if err = s.emailSvc.SendCode(email, code); err != nil {
+		return "", errors.New("не удалось отправить письмо с кодом, пожалуйста, проверьте адрес электронной почты")
+	}
+
+	return tempID, nil
 }
 
 // VerifyLoginCode проверяет код и генерирует JWT
-func (s *authService) VerifyLoginCode(email, code string) (string, error) {
-	storedCode, err := s.redisClient.Get(s.ctx, "login:"+email).Result()
+func (s *authService) VerifyLoginCode(tempID, code string) (string, error) {
+	val, err := s.redisClient.Get(s.ctx, "login:"+tempID).Result()
 	if err != nil {
-		return "", errors.New("код не найден или истёк")
+		return "", errors.New("код не найден или срок действия кода истёк, повторите запрос")
 	}
-	if storedCode != code {
-		return "", errors.New("неверный код")
+	var data map[string]string
+	if err = json.Unmarshal([]byte(val), &data); err != nil {
+		return "", errors.New("не удалось обработать данные авторизации, повторите попытку")
 	}
-	// Генерируем JWT (с очень большим сроком жизни)
-	token, err := util.GenerateJWT(email, s.jwtSecret)
+	if data["code"] != code {
+		return "", errors.New("введён неверный код, пожалуйста, проверьте и повторите попытку")
+	}
+
+	token, err := util.GenerateJWT(data["email"], s.jwtSecret)
 	if err != nil {
-		return "", err
+		return "", errors.New("не удалось сгенерировать токен авторизации, повторите попытку позже")
 	}
-	// Удаляем код из Redis
-	s.redisClient.Del(s.ctx, "login:"+email)
+	s.redisClient.Del(s.ctx, "login:"+tempID)
 	return token, nil
 }
 
 // RequestRegistrationCode отправляет код для регистрации и сохраняет связь uuid -> email
 func (s *authService) RequestRegistrationCode(email string) (string, error) {
-	// Проверяем, что пользователя с таким email ещё нет
-	user, err := s.userRepo.GetByEmail(email)
+	// Проверка существования пользователя
+	existingUser, err := s.userRepo.GetByEmail(email)
 	if err != nil {
-		return "", err
+		return "", errors.New("не удалось проверить данные. Попробуйте позже")
 	}
-	if user != nil {
-		return "", errors.New("пользователь с такой почтой уже существует")
+	if existingUser != nil {
+		return "", errors.New("пользователь с указанным email уже существует")
 	}
 
-	// Генерируем код и сохраняем его в Redis с TTL 90 секунд
 	code := util.GenerateCode()
-	err = s.redisClient.Set(s.ctx, "register:"+email, code, 90*time.Second).Err()
+	tempID := uuid.New().String()
+
+	data := map[string]string{
+		"email": email,
+		"code":  code,
+	}
+	serialized, err := json.Marshal(data)
 	if err != nil {
-		return "", err
+		return "", errors.New("не удалось сформировать данные для отправки кода")
 	}
 
-	// Генерируем UUID для регистрации и сохраняем его вместе с email на 15 минут
-	uuidKey := uuid.New().String()
-	err = s.redisClient.Set(s.ctx, "registration_uuid:"+uuidKey, email, 15*time.Minute).Err()
+	// Сохраняем данные в Redis с TTL 90 секунд
+	err = s.redisClient.Set(s.ctx, "register:"+tempID, serialized, 90*time.Second).Err()
 	if err != nil {
-		return "", err
+		return "", errors.New("не удалось сохранить данные регистрации, повторите попытку позже")
 	}
 
-	// Отправляем код на почту
-	if err := s.emailSvc.SendCode(email, code); err != nil {
-		return "", err
+	// Отправляем код на указанный email
+	if err = s.emailSvc.SendCode(email, code); err != nil {
+		return "", errors.New("не удалось отправить письмо с кодом, пожалуйста, проверьте адрес электронной почты")
 	}
 
-	// Возвращаем UUID клиенту
-	return uuidKey, nil
+	return tempID, nil
 }
 
 // VerifyRegistrationCode проверяет код и регистрирует нового пользователя, используя UUID
-func (s *authService) VerifyRegistrationCode(registrationUUID, code, name, surname, nickname string) error {
-	// Получаем email по UUID
-	email, err := s.redisClient.Get(s.ctx, "registration_uuid:"+registrationUUID).Result()
+func (s *authService) VerifyRegistrationCode(tempID, code, name, surname, nickname string) error {
+	val, err := s.redisClient.Get(s.ctx, "register:"+tempID).Result()
 	if err != nil {
-		return errors.New("регистрация не найдена или истёкла")
+		return errors.New("код не найден или срок действия кода истёк, повторите запрос")
+	}
+	var data map[string]string
+	if err = json.Unmarshal([]byte(val), &data); err != nil {
+		return errors.New("не удалось обработать данные регистрации, повторите попытку")
+	}
+	if data["code"] != code {
+		return errors.New("введён неверный код, пожалуйста, проверьте и повторите попытку")
 	}
 
-	// Получаем сохранённый код по email и сверяем
-	storedCode, err := s.redisClient.Get(s.ctx, "register:"+email).Result()
-	if err != nil {
-		return errors.New("код не найден или истёк")
-	}
-	if storedCode != code {
-		return errors.New("неверный код")
-	}
-
-	// Если nickname пустой – используем name
 	if nickname == "" {
 		nickname = name
 	}
@@ -138,15 +155,12 @@ func (s *authService) VerifyRegistrationCode(registrationUUID, code, name, surna
 		Name:     name,
 		Surname:  surname,
 		Nickname: nickname,
-		Email:    email,
+		Email:    data["email"],
 	}
-	err = s.userRepo.Create(newUser)
-	if err != nil {
-		return err
+	if err = s.userRepo.Create(newUser); err != nil {
+		return errors.New("не удалось создать пользователя, попробуйте позже")
 	}
-	// Удаляем данные регистрации из Redis
-	s.redisClient.Del(s.ctx, "register:"+email)
-	s.redisClient.Del(s.ctx, "registration_uuid:"+registrationUUID)
+	s.redisClient.Del(s.ctx, "register:"+tempID)
 	return nil
 }
 
