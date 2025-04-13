@@ -18,7 +18,7 @@ type AuthService interface {
 	RequestLoginCode(email string) (string, error)
 	VerifyLoginCode(tempID, code string) (string, error)
 	RequestRegistrationCode(email string) (string, error)
-	VerifyRegistrationCode(tempID, code, name, surname, nickname string) error
+	VerifyRegistrationCode(tempID, code, name, surname, nickname string) (string, error)
 	Logout(token string) error
 }
 
@@ -135,17 +135,17 @@ func (s *authService) RequestRegistrationCode(email string) (string, error) {
 }
 
 // VerifyRegistrationCode проверяет код и регистрирует нового пользователя, используя UUID
-func (s *authService) VerifyRegistrationCode(tempID, code, name, surname, nickname string) error {
+func (s *authService) VerifyRegistrationCode(tempID, code, name, surname, nickname string) (string, error) {
 	val, err := s.redisClient.Get(s.ctx, "register:"+tempID).Result()
 	if err != nil {
-		return errors.New("код не найден или срок действия кода истёк, повторите запрос")
+		return "", errors.New("код не найден или срок действия кода истёк, повторите запрос")
 	}
 	var data map[string]string
 	if err = json.Unmarshal([]byte(val), &data); err != nil {
-		return errors.New("не удалось обработать данные регистрации, повторите попытку")
+		return "", errors.New("не удалось обработать данные регистрации, повторите попытку")
 	}
 	if data["code"] != code {
-		return errors.New("введён неверный код, пожалуйста, проверьте и повторите попытку")
+		return "", errors.New("введён неверный код, пожалуйста, проверьте и повторите попытку")
 	}
 
 	if nickname == "" {
@@ -158,11 +158,16 @@ func (s *authService) VerifyRegistrationCode(tempID, code, name, surname, nickna
 		Email:    data["email"],
 	}
 	if err = s.userRepo.Create(newUser); err != nil {
-		return errors.New("не удалось создать пользователя, попробуйте позже")
+		return "", errors.New("не удалось создать пользователя, попробуйте позже")
+	}
+	token, err := util.GenerateJWT(data["email"], s.jwtSecret)
+	if err != nil {
+		return "", errors.New("не удалось сгенерировать токен авторизации, повторите попытку позже")
 	}
 	s.redisClient.Del(s.ctx, "register:"+tempID)
-	return nil
+	return token, nil
 }
+
 
 // Logout добавляет токен в blacklist в Redis, чтобы его нельзя было использовать далее
 func (s *authService) Logout(token string) error {
