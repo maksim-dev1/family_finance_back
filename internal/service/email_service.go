@@ -10,18 +10,25 @@ import (
 	"github.com/jordan-wright/email"
 )
 
+// EmailService определяет интерфейс для отправки email-сообщений
 type EmailService interface {
+	// SendCode отправляет код подтверждения на указанный email
+	// Использует SMTP для отправки сообщения
 	SendCode(to, code string) error
 }
 
+// emailService реализует интерфейс EmailService
 type emailService struct {
 	cfg config.Config
 }
 
+// NewEmailService создает новый экземпляр EmailService
 func NewEmailService(cfg config.Config) EmailService {
 	return &emailService{cfg: cfg}
 }
 
+// SendCode отправляет код подтверждения на указанный email
+// Использует SMTP с TLS для безопасной отправки
 func (s *emailService) SendCode(to, code string) error {
 	e := email.NewEmail()
 	e.From = s.cfg.SMTPUsername

@@ -8,15 +8,17 @@ import (
 	"family_finance_back/internal/service"
 )
 
+// AuthHandler обрабатывает HTTP запросы, связанные с авторизацией
 type AuthHandler struct {
 	authService service.AuthService
 }
 
+// NewAuthHandler создает новый экземпляр AuthHandler
 func NewAuthHandler(authService service.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
-// Вспомогательная функция для возврата ошибок в формате JSON
+// respondWithError отправляет ответ с ошибкой в формате JSON
 func respondWithError(w http.ResponseWriter, statusCode int, errMsg, details string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
@@ -26,19 +28,23 @@ func respondWithError(w http.ResponseWriter, statusCode int, errMsg, details str
 	})
 }
 
+// LoginRequest представляет запрос на получение кода для входа
 type LoginRequest struct {
 	Email string `json:"email"`
 }
 
+// VerifyLoginRequest представляет запрос на проверку кода входа
 type VerifyLoginRequest struct {
 	TempID string `json:"temp_id"`
 	Code   string `json:"code"`
 }
 
+// RegistrationRequest представляет запрос на получение кода для регистрации
 type RegistrationRequest struct {
 	Email string `json:"email"`
 }
 
+// VerifyRegistrationRequest представляет запрос на проверку кода регистрации
 type VerifyRegistrationRequest struct {
 	TempID   string `json:"temp_id"`
 	Code     string `json:"code"`
@@ -47,6 +53,7 @@ type VerifyRegistrationRequest struct {
 	Nickname string `json:"nickname"`
 }
 
+// RequestLoginCodeHandler обрабатывает запрос на получение кода для входа
 func (h *AuthHandler) RequestLoginCodeHandler(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" {
@@ -62,6 +69,7 @@ func (h *AuthHandler) RequestLoginCodeHandler(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(map[string]string{"temp_id": tempID})
 }
 
+// VerifyLoginCodeHandler обрабатывает запрос на проверку кода входа
 func (h *AuthHandler) VerifyLoginCodeHandler(w http.ResponseWriter, r *http.Request) {
 	var req VerifyLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.TempID == "" || req.Code == "" {
@@ -77,6 +85,7 @@ func (h *AuthHandler) VerifyLoginCodeHandler(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
+// RequestRegistrationCodeHandler обрабатывает запрос на получение кода для регистрации
 func (h *AuthHandler) RequestRegistrationCodeHandler(w http.ResponseWriter, r *http.Request) {
 	var req RegistrationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" {
@@ -94,6 +103,7 @@ func (h *AuthHandler) RequestRegistrationCodeHandler(w http.ResponseWriter, r *h
 	json.NewEncoder(w).Encode(map[string]string{"temp_id": tempID})
 }
 
+// VerifyRegistrationCodeHandler обрабатывает запрос на проверку кода регистрации
 func (h *AuthHandler) VerifyRegistrationCodeHandler(w http.ResponseWriter, r *http.Request) {
 	var req VerifyRegistrationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
@@ -111,6 +121,7 @@ func (h *AuthHandler) VerifyRegistrationCodeHandler(w http.ResponseWriter, r *ht
 	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
+// LogoutHandler обрабатывает запрос на выход из системы
 func (h *AuthHandler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {

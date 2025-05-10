@@ -7,6 +7,7 @@ import (
 	"family_finance_back/config"
 	"family_finance_back/internal/db"
 	"family_finance_back/internal/handlers"
+	"family_finance_back/internal/middleware"
 	"family_finance_back/internal/repository"
 	"family_finance_back/internal/service"
 
@@ -33,16 +34,26 @@ func main() {
 	// Инициализируем сервисы
 	emailSvc := service.NewEmailService(cfg)
 	authSvc := service.NewAuthService(userRepo, emailSvc, redisClient, cfg.JWTSecret)
+	userSvc := service.NewUserService(userRepo, cfg.JWTSecret)
 
 	// Инициализируем обработчики
 	authHandler := handlers.NewAuthHandler(authSvc)
+	userHandler := handlers.NewUserHandler(userSvc)
+
+	// Создаем middleware для проверки JWT токена
+	jwtMiddleware := middleware.JWTAuthMiddleware(redisClient)
 
 	// Группируем эндпоинты, связанные с авторизацией, под префиксом /auth
 	http.HandleFunc("/auth/login", authHandler.RequestLoginCodeHandler)
 	http.HandleFunc("/auth/login/verify", authHandler.VerifyLoginCodeHandler)
 	http.HandleFunc("/auth/register", authHandler.RequestRegistrationCodeHandler)
 	http.HandleFunc("/auth/register/verify", authHandler.VerifyRegistrationCodeHandler)
-	http.HandleFunc("/auth/logout", authHandler.LogoutHandler)
+	http.HandleFunc("/auth/logout", jwtMiddleware(authHandler.LogoutHandler))
+
+	// Эндпоинты для работы с пользователем (защищенные JWT)
+	http.HandleFunc("/user", jwtMiddleware(userHandler.GetUserHandler))
+	http.HandleFunc("/user/update", jwtMiddleware(userHandler.UpdateUserHandler))
+	http.HandleFunc("/user/search", jwtMiddleware(userHandler.SearchUserByEmailHandler))
 
 	log.Println("Сервер запущен на порту 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

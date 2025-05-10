@@ -14,14 +14,30 @@ import (
 	"github.com/google/uuid"
 )
 
+// AuthService определяет интерфейс для работы с авторизацией пользователей
 type AuthService interface {
+	// RequestLoginCode отправляет код подтверждения на email для входа
+	// Возвращает временный идентификатор для последующей верификации
 	RequestLoginCode(email string) (string, error)
+
+	// VerifyLoginCode проверяет код подтверждения и генерирует JWT токен
+	// Возвращает JWT токен при успешной верификации
 	VerifyLoginCode(tempID, code string) (string, error)
+
+	// RequestRegistrationCode отправляет код подтверждения на email для регистрации
+	// Возвращает временный идентификатор для последующей верификации
 	RequestRegistrationCode(email string) (string, error)
+
+	// VerifyRegistrationCode проверяет код подтверждения и создает нового пользователя
+	// Возвращает JWT токен при успешной регистрации
 	VerifyRegistrationCode(tempID, code, name, surname, nickname string) (string, error)
+
+	// Logout добавляет токен в черный список
+	// После вызова токен становится недействительным
 	Logout(token string) error
 }
 
+// authService реализует интерфейс AuthService
 type authService struct {
 	userRepo    repository.UserRepository
 	emailSvc    EmailService
@@ -30,6 +46,7 @@ type authService struct {
 	ctx         context.Context
 }
 
+// NewAuthService создает новый экземпляр AuthService
 func NewAuthService(userRepo repository.UserRepository, emailSvc EmailService, redisClient *redis.Client, jwtSecret string) AuthService {
 	return &authService{
 		userRepo:    userRepo,
@@ -167,7 +184,6 @@ func (s *authService) VerifyRegistrationCode(tempID, code, name, surname, nickna
 	s.redisClient.Del(s.ctx, "register:"+tempID)
 	return token, nil
 }
-
 
 // Logout добавляет токен в blacklist в Redis, чтобы его нельзя было использовать далее
 func (s *authService) Logout(token string) error {

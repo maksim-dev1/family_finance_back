@@ -11,6 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// InitPostgres инициализирует подключение к PostgreSQL
+// Использует параметры подключения из конфигурации
+// Возвращает экземпляр *gorm.DB для работы с базой данных
 func InitPostgres(cfg config.Config) *gorm.DB {
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
